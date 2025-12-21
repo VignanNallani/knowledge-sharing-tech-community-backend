@@ -1,0 +1,271 @@
+// -----------------------------
+// Prisma Client generator
+// -----------------------------
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------
+// Datasource configuration
+// -----------------------------
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------
+// Enums
+// -----------------------------
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SlotStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  STARTED
+  ENDED
+  CANCELLED
+}
+
+// -----------------------------
+// Models
+// -----------------------------
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  password     String
+  bio          String?
+  skills       String?
+  profileImage String?
+  roleId       Int?
+  role         Role?     @relation(fields: [roleId], references: [id])
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  posts               Post[]
+  comments            Comment[]
+  likes               Like[]
+  followers           Follower[]           @relation("UserFollowers")
+  following           Follower[]           @relation("UserFollowing")
+  events              EventAttendee[]      @relation("UserEventAttendances")
+  mentorshipsAsMentor Mentorship[]         @relation("MentorRelation")
+  mentorshipsAsMentee Mentorship[]         @relation("MenteeRelation")
+  collaborations      Collaboration[]      @relation("UserCollaborations")
+  reports             Report[]
+  messagesSent        Message[]            @relation("UserMessages")
+  conversationMembers ConversationMember[]
+  slots               Slot[]               @relation("UserSlots")
+  bookings            Booking[]            @relation("UserBookings")
+
+  @@index([email])
+}
+
+// -----------------------------
+// Posts, Comments, Likes, Tags
+// -----------------------------
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  image     String?
+  authorId  Int
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  likes     Like[]
+  tags      PostTag[]
+  reports   Report[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  Int
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  postId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id    Int       @id @default(autoincrement())
+  name  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId Int
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  Int
+
+  @@id([postId, tagId])
+}
+
+// -----------------------------
+// Social Relations
+// -----------------------------
+model Follower {
+  id          Int  @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  follower    User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------
+// Events, Mentorships, Collaborations, Reports
+// -----------------------------
+model Event {
+  id        Int             @id @default(autoincrement())
+  name      String
+  startsAt  DateTime?
+  endsAt    DateTime?
+  attendees EventAttendee[] @relation("EventAttendees")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model EventAttendee {
+  event   Event @relation("EventAttendees", fields: [eventId], references: [id], onDelete: Cascade)
+  eventId Int
+
+  user   User @relation("UserEventAttendances", fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  @@id([eventId, userId])
+}
+
+model Mentorship {
+  id       Int  @id @default(autoincrement())
+  mentorId Int
+  menteeId Int
+  mentor   User @relation("MentorRelation", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee   User @relation("MenteeRelation", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  status        String    @default("pending")
+  topic         String?
+  preferredSlot DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([mentorId])
+  @@index([menteeId])
+}
+
+model Collaboration {
+  id        Int      @id @default(autoincrement())
+  project   String
+  users     User[]   @relation("UserCollaborations")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  reason    String
+  postId    Int?
+  userId    Int?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -----------------------------
+// Messaging System
+// -----------------------------
+model Conversation {
+  id        String               @id @default(uuid())
+  createdAt DateTime             @default(now())
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  conversationId String
+  userId         Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       Int?
+  body           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User?        @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------
+// Slot Booking & Meetings
+// -----------------------------
+model Slot {
+  id        String     @id @default(uuid())
+  mentorId  Int
+  startAt   DateTime
+  endAt     DateTime
+  status    SlotStatus @default(OPEN)
+  booking   Booking?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  mentor    User       @relation("UserSlots", fields: [mentorId], references: [id], onDelete: Cascade)
+  Meeting   Meeting?
+
+  @@index([mentorId, startAt])
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  slotId    String
+  menteeId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  slot      Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  mentee    User     @relation("UserBookings", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  @@unique([slotId])
+  @@index([menteeId])
+}
+
+model Meeting {
+  id        String        @id @default(uuid())
+  slotId    String        @unique
+  meetUrl   String?
+  status    MeetingStatus @default(SCHEDULED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  slot      Slot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+}
