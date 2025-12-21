@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# Env files
+.env
+.env.local
+
+# Logs
+*.log
+
+# Prisma client
+/prisma/client/
+
+# Build outputs
+/dist
+/build
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Optional: VSCode settings
+.vscode/
