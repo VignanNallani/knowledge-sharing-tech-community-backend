@@ -186,10 +186,14 @@ const prisma = new PrismaClient();
 
 const server = http.createServer(app);
 
+// Allowed origins for production; set FRONTEND_ORIGIN in env (Railway)
+const allowedOrigins = [process.env.FRONTEND_ORIGIN];
+
 const io = new IOServer(server, {
   cors: {
-    origin: process.env.FRONTEND_ORIGIN || "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -234,7 +238,16 @@ io.on("connection", (socket) => {
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || "*",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `CORS policy: The origin ${origin} is not allowed.`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
