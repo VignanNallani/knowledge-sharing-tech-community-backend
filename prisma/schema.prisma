@@ -1,42 +1,12 @@
-// -----------------------------
-// Prisma Client generator
-// -----------------------------
 generator client {
   provider = "prisma-client-js"
 }
 
-// -----------------------------
-// Datasource configuration
-// -----------------------------
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// -----------------------------
-// Enums
-// -----------------------------
-enum UserRole {
-  USER
-  ADMIN
-}
-
-enum SlotStatus {
-  OPEN
-  BOOKED
-  CANCELLED
-}
-
-enum MeetingStatus {
-  SCHEDULED
-  STARTED
-  ENDED
-  CANCELLED
-}
-
-// -----------------------------
-// Models
-// -----------------------------
 model Role {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -45,54 +15,50 @@ model Role {
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String    @unique
-  password     String
-  bio          String?
-  skills       String?
-  profileImage String?
-  roleId       Int?
-  role         Role?     @relation(fields: [roleId], references: [id])
-  isActive     Boolean   @default(true)
-  deletedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  posts               Post[]
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  email               String               @unique
+  password            String
+  bio                 String?
+  skills              String?
+  profileImage        String?
+  roleId              Int?
+  isActive            Boolean              @default(true)
+  deletedAt           DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  bookings            Booking[]            @relation("UserBookings")
   comments            Comment[]
-  likes               Like[]
+  conversationMembers ConversationMember[]
+  events              EventAttendee[]      @relation("UserEventAttendances")
   followers           Follower[]           @relation("UserFollowers")
   following           Follower[]           @relation("UserFollowing")
-  events              EventAttendee[]      @relation("UserEventAttendances")
-  mentorshipsAsMentor Mentorship[]         @relation("MentorRelation")
+  likes               Like[]
   mentorshipsAsMentee Mentorship[]         @relation("MenteeRelation")
-  collaborations      Collaboration[]      @relation("UserCollaborations")
-  reports             Report[]
+  mentorshipsAsMentor Mentorship[]         @relation("MentorRelation")
   messagesSent        Message[]            @relation("UserMessages")
-  conversationMembers ConversationMember[]
+  posts               Post[]
+  reports             Report[]
   slots               Slot[]               @relation("UserSlots")
-  bookings            Booking[]            @relation("UserBookings")
+  role                Role?                @relation(fields: [roleId], references: [id])
+  collaborations      Collaboration[]      @relation("UserCollaborations")
 
   @@index([email])
 }
 
-// -----------------------------
-// Posts, Comments, Likes, Tags
-// -----------------------------
 model Post {
   id        Int       @id @default(autoincrement())
   title     String
   content   String
   image     String?
   authorId  Int
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments  Comment[]
-  likes     Like[]
-  tags      PostTag[]
-  reports   Report[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  comments  Comment[]
+  likes     Like[]
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  tags      PostTag[]
+  reports   Report[]
 }
 
 model Comment {
@@ -110,8 +76,8 @@ model Like {
   id     Int  @id @default(autoincrement())
   userId Int
   postId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Tag {
@@ -121,17 +87,14 @@ model Tag {
 }
 
 model PostTag {
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId Int
-  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
   tagId  Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
 }
 
-// -----------------------------
-// Social Relations
-// -----------------------------
 model Follower {
   id          Int  @id @default(autoincrement())
   followerId  Int
@@ -140,41 +103,36 @@ model Follower {
   following   User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
 }
 
-// -----------------------------
-// Events, Mentorships, Collaborations, Reports
-// -----------------------------
 model Event {
   id        Int             @id @default(autoincrement())
   name      String
   startsAt  DateTime?
   endsAt    DateTime?
-  attendees EventAttendee[] @relation("EventAttendees")
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
+  attendees EventAttendee[] @relation("EventAttendees")
 }
 
 model EventAttendee {
-  event   Event @relation("EventAttendees", fields: [eventId], references: [id], onDelete: Cascade)
   eventId Int
-
-  user   User @relation("UserEventAttendances", fields: [userId], references: [id], onDelete: Cascade)
-  userId Int
+  userId  Int
+  event   Event @relation("EventAttendees", fields: [eventId], references: [id], onDelete: Cascade)
+  user    User  @relation("UserEventAttendances", fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([eventId, userId])
 }
 
 model Mentorship {
-  id       Int  @id @default(autoincrement())
-  mentorId Int
-  menteeId Int
-  mentor   User @relation("MentorRelation", fields: [mentorId], references: [id], onDelete: Cascade)
-  mentee   User @relation("MenteeRelation", fields: [menteeId], references: [id], onDelete: Cascade)
-
+  id            Int       @id @default(autoincrement())
+  mentorId      Int
+  menteeId      Int
   status        String    @default("pending")
   topic         String?
   preferredSlot DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  mentee        User      @relation("MenteeRelation", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor        User      @relation("MentorRelation", fields: [mentorId], references: [id], onDelete: Cascade)
 
   @@index([mentorId])
   @@index([menteeId])
@@ -183,9 +141,9 @@ model Mentorship {
 model Collaboration {
   id        Int      @id @default(autoincrement())
   project   String
-  users     User[]   @relation("UserCollaborations")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  users     User[]   @relation("UserCollaborations")
 }
 
 model Report {
@@ -193,15 +151,12 @@ model Report {
   reason    String
   postId    Int?
   userId    Int?
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// -----------------------------
-// Messaging System
-// -----------------------------
 model Conversation {
   id        String               @id @default(uuid())
   createdAt DateTime             @default(now())
@@ -229,34 +184,30 @@ model Message {
   sender         User?        @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
-// -----------------------------
-// Slot Booking & Meetings
-// -----------------------------
 model Slot {
   id        String     @id @default(uuid())
   mentorId  Int
   startAt   DateTime
   endAt     DateTime
   status    SlotStatus @default(OPEN)
-  booking   Booking?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  mentor    User       @relation("UserSlots", fields: [mentorId], references: [id], onDelete: Cascade)
+  booking   Booking?
   Meeting   Meeting?
+  mentor    User       @relation("UserSlots", fields: [mentorId], references: [id], onDelete: Cascade)
 
   @@index([mentorId, startAt])
 }
 
 model Booking {
   id        String   @id @default(uuid())
-  slotId    String
+  slotId    String   @unique
   menteeId  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  slot      Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
   mentee    User     @relation("UserBookings", fields: [menteeId], references: [id], onDelete: Cascade)
+  slot      Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
 
-  @@unique([slotId])
   @@index([menteeId])
 }
 
@@ -268,4 +219,22 @@ model Meeting {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   slot      Slot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SlotStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  STARTED
+  ENDED
+  CANCELLED
 }
